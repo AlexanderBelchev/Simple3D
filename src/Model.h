@@ -3,10 +3,17 @@
 
 #include "Vector.h"
 
+#include <SDL2/SDL_render.h>
+
 typedef struct{
-    Vector3f vertices[MODEL_SIZE];
-    int faces[FACES_SIZE][5];
-    Vector2f screen_points[MODEL_SIZE];
+    Vector3f *vertices;
+    Vector3f *normals;
+
+    Vector3 **faces;
+
+    SDL_Vertex screen_vertices[MODEL_SIZE];
+    Vector3 screen[MODEL_SIZE];
+
     int vertex_count;
     int face_count;
 } Model;
