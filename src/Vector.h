@@ -1,3 +1,6 @@
+#ifndef VECTOR_H
+#define VECTOR_H
+
 typedef struct
 {
     float x, y, z;
@@ -9,3 +12,5 @@ typedef struct
 } Vector2f;
 
 Vector3f Scale(Vector3f vector_a, Vector3f vector_b);
+
+#endif /* VECTOR_H */
