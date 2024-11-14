@@ -7,7 +7,8 @@
 // Local functions for this file only
 
 void get_vertex_vector(Vector3f *out, char *line, int len);
-void get_faces(Vector3 *out, char *line, int len);
+// Return the number of vertices in the face
+int get_faces(Vector3 *out, char *line, int len);
 void get_face_normals(Vector3 *out, char *line, int len);
 
 void get_normal_vector(Vector3f *out, char *line, int len);
@@ -37,7 +38,7 @@ void load_model(Model *model, const char* filepath)
             model->vertices[k] = (Vector3f){0};
 
         printf("Vertex count: %d\n", v);
-        
+
         // Count number of faces
         f = get_keyword_count("f", file_ptr);
 
@@ -51,14 +52,18 @@ void load_model(Model *model, const char* filepath)
         n = get_keyword_count("vn", file_ptr);
 
         model->faces = malloc(f*sizeof(model->faces));
+        model->face_data = malloc(f*sizeof *model->face_data);
+
         for(int j = 0; j < f; j++)
         {
+            model->face_data[j] = 0;
             model->faces[j] = malloc(5*sizeof(Vector3));
             for(int k = 0; k < 5; k++)
             {
                 model->faces[j][k] = (Vector3){0};
             }
         }
+
 
         printf("Normals count: %d\n", n);
 
@@ -76,7 +81,7 @@ void load_model(Model *model, const char* filepath)
             }
             keyword[i] = '\0';
 
-            
+
             if(strcmp(keyword, "v") == 0)
             {
                 get_vertex_vector(&model->vertices[v_i], line_buffer, strlen(line_buffer));
@@ -89,12 +94,12 @@ void load_model(Model *model, const char* filepath)
             }
             else if(strcmp(keyword, "f") == 0)
             {
-                get_faces(model->faces[f_i], line_buffer, strlen(line_buffer));
+                model->face_data[f_i] = get_faces(model->faces[f_i], line_buffer, strlen(line_buffer));
                 get_face_normals(model->faces[f_i], line_buffer, strlen(line_buffer));
                 f_i++;
             }
         }
-        
+
         model->vertex_count = v;
         model->face_count = f_i;
         printf("End of file\n");
@@ -130,7 +135,7 @@ void get_vertex_vector(Vector3f *out, char *line, int len)
         end_ptr = &line[i];
         out->x = strtof(start_ptr, &end_ptr);
         //printf("X: %f ", out->x);
-        
+
         // Read y value
         i++;
         start_ptr = &line[i];
@@ -138,7 +143,7 @@ void get_vertex_vector(Vector3f *out, char *line, int len)
         end_ptr = &line[i];
         out->y = strtof(start_ptr, &end_ptr);
         //printf("Y: %f ", out->y);
-        
+
         // Read z value
         i++;
         start_ptr = &line[i];
@@ -171,7 +176,7 @@ void get_normal_vector(Vector3f *out, char *line, int len)
         end_ptr = &line[i];
         out->x = strtof(start_ptr, &end_ptr);
         //printf("X: %f ", out->x);
-        
+
         // Read y value
         i++;
         start_ptr = &line[i];
@@ -179,7 +184,7 @@ void get_normal_vector(Vector3f *out, char *line, int len)
         end_ptr = &line[i];
         out->y = strtof(start_ptr, &end_ptr);
         //printf("Y: %f ", out->y);
-        
+
         // Read z value
         i++;
         start_ptr = &line[i];
@@ -190,7 +195,7 @@ void get_normal_vector(Vector3f *out, char *line, int len)
     }
 }
 
-void get_faces(Vector3 *out, char *line, int len)
+int get_faces(Vector3 *out, char *line, int len)
 {
     char keyword[6];
     int i = 0;
@@ -202,11 +207,46 @@ void get_faces(Vector3 *out, char *line, int len)
     keyword[i] = '\0';
     if(strcmp(keyword, "f") == 0)
     {
-        for(int j = 0; j < 5; j++)
+        int count = 0;
+        int j = 0;
+        while(line[i] != '\n')
         {
             char *start_ptr, *end_ptr;
             i++;
             
+            if(i >= len) break;
+
+            start_ptr = &line[i];
+            while(line[i] != ' ' && line[i] != '\n') i++;
+            if(i >= len) break;
+            end_ptr = &line[i];
+
+            // Get vertex index
+            char data[32];
+            int data_len = (end_ptr - start_ptr);
+            strncpy(data, start_ptr, data_len);
+            data[data_len] = '\0';
+
+            char *str = strtok(data, "/");
+            // Save vertex to out
+            out[j].x = (int)strtol(str, &str + strlen(str) , 10);
+
+            count++;    //<--------------------------IF SOMETHING CAUSES A SF, IT'S THIS
+            j++;
+        }
+        // Subtract 1 from all to be used as indexes.
+        // -1 means that there is nothing to connect to
+        for(int k = 0; k < count; k++)
+        {
+            out[k].x -= 1;
+        }
+        //model->face_data[i] = count;
+        return count;
+        /*for(int j = 0; j < 5; j++)
+          {
+            char *start_ptr, *end_ptr;
+            i++;
+
             start_ptr = &line[i];
             while(line[i] != ' ' && line[i] != '\n') i++;
             end_ptr = &line[i];
@@ -230,9 +270,9 @@ void get_faces(Vector3 *out, char *line, int len)
         // -1 means that there is nothing to connect to
         for(int k = 0; k < 5; k++)
         {
-            out[k].x -= 1;
-            //out[k].z -= 1;
-        }
+        out[k].x -= 1;
+        //out[k].z -= 1;
+        }*/
     }
 }
 
@@ -252,7 +292,7 @@ void get_face_normals(Vector3 *out, char *line, int len)
         {
             char *start_ptr, *end_ptr;
             i++;
-            
+
             start_ptr = &line[i];
             while(line[i] != ' ' && line[i] != '\n') i++;
             end_ptr = &line[i];

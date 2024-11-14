@@ -11,8 +11,12 @@ typedef struct{
 
     Vector3 **faces;
 
+    // number of vertices in face
+    // index in array is index of face
+    int *face_data;
+
     SDL_Vertex screen_vertices[MODEL_SIZE];
-    Vector3 screen[MODEL_SIZE];
+    Vector3f screen[MODEL_SIZE];
 
     int vertex_count;
     int face_count;
