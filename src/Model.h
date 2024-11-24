@@ -3,6 +3,10 @@
 
 #include "Vector.h"
 
+#ifndef MATRIX_H
+#include "Matrix.h"
+#endif
+
 #include <SDL2/SDL_render.h>
 
 typedef struct{
@@ -18,9 +22,17 @@ typedef struct{
     SDL_Vertex screen_vertices[MODEL_SIZE];
     Vector3f screen[MODEL_SIZE];
 
+    Vector2f *ordered_faces;
+
+    Vector3f position;
+    Vector3f rotation;
+
     int vertex_count;
     int face_count;
 } Model;
 
 
 void load_model(Model *model, const char* filepath);
+void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *projection_matrix);
+void sort_faces(Model *model);
+void draw_model(Model *model, SDL_Renderer *renderer);

@@ -5,15 +5,18 @@
 #include <string.h>
 
 // Local functions for this file only
-
 void get_vertex_vector(Vector3f *out, char *line, int len);
+
 // Return the number of vertices in the face
 int get_faces(Vector3 *out, char *line, int len);
+
 void get_face_normals(Vector3 *out, char *line, int len);
 
 void get_normal_vector(Vector3f *out, char *line, int len);
 
 int get_keyword_count(const char* key, FILE *file_ptr);
+
+// End of local function definities
 
 void load_model(Model *model, const char* filepath)
 {
@@ -23,7 +26,7 @@ void load_model(Model *model, const char* filepath)
     printf("File open\n");
     if(file_ptr != NULL)
     {
-        char line_buffer[128];
+        char line_buffer[512];
         int v_i = 0;
         int f_i = 0;
         int n_i = 0;
@@ -113,6 +116,167 @@ void load_model(Model *model, const char* filepath)
     }
 }
 
+void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *projection_matrix)
+{
+    for(int i = 0; i < model->vertex_count; i++)
+    {
+        Vector3f result_vertex = {0};
+        Vector3f position_result = {0};
+        Vector3f transform_result_vertex = {0};
+        Vector3f *vertex = &model->vertices[i];
+
+        // Apply x-rotation matrix
+        Matrix4x4 x_rotation_matrix = {0};
+        Vector3f x_rotation_result = {0};
+        SetXRotationMatrix(&x_rotation_matrix, model->rotation.x);
+        MultiplyPointBy4x4(vertex, &x_rotation_matrix, &x_rotation_result);
+
+        // Apply y-rotation matrix
+        Matrix4x4 y_rotation_matrix = {0};
+        Vector3f y_rotation_result = {0};
+        SetYRotationMatrix(&y_rotation_matrix, model->rotation.y);
+        MultiplyPointBy4x4(&x_rotation_result, &y_rotation_matrix, &y_rotation_result);
+
+        // Apply z-rotation matrix
+        Matrix4x4 z_rotation_matrix = {0};
+        Vector3f z_rotation_result = {0};
+        SetZRotationMatrix(&z_rotation_matrix, model->rotation.z);
+        MultiplyPointBy4x4(&y_rotation_result, &z_rotation_matrix, &z_rotation_result);
+
+
+        // Update camera matrix with model position
+        Matrix4x4 transform_matrix = {0};
+        SetTransformMatrix(&transform_matrix, model->position);
+        //SetTransformMatrix(&transform_matrix, position);
+        // Apply camera matrix 
+        MultiplyPointBy4x4(&z_rotation_result, &transform_matrix, &transform_result_vertex);
+
+        // Apply projection
+        MultiplyPointBy4x4(&transform_result_vertex, projection_matrix, &result_vertex);
+
+        // Let's see if the vertex point is visible
+        if(result_vertex.x > 1 || result_vertex.x < -1 ||
+                result_vertex.y > 1 || result_vertex.y < -1 ||
+                result_vertex.z < 0)
+            continue;   // Point isn't visible
+
+        // Convert to screen space
+        int x = (result_vertex.x + 1) * 0.5 * 1920;
+        int y = (result_vertex.y + 1) * 0.5 * 1080;
+        float depth = result_vertex.z;
+        Vector3f *v = &model->screen[i];
+        SDL_Vertex *vert = &model->screen_vertices[i];
+        vert->position.x = x;
+        vert->position.y = y;
+        v->z = depth * 100;
+
+        vert->color.r = 255;
+        vert->color.g = 255;
+        vert->color.b = 255;
+        vert->color.a = 255;
+    }
+}
+
+void sort_faces(Model *model)
+{
+    model->ordered_faces = malloc(model->face_count * sizeof *model->ordered_faces);
+    memset(model->ordered_faces, 0, model->face_count * sizeof *model->ordered_faces);
+
+    // Set index and corresponding depth value for each face at index i
+    for(int i = 0; i < model->face_count; i++)
+    {
+        model->ordered_faces[i].x = i;
+        model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
+    }
+
+    // Sort by largest depth number
+    for(int i = 0; i < model->face_count; i++)
+    {
+        for(int j = i + 1; j < model->face_count; j++)
+        {
+            if(model->ordered_faces[i].y > model->ordered_faces[j].y)
+            {
+                Vector2f temp = {0};
+                temp.x = model->ordered_faces[i].x;
+                temp.y = model->ordered_faces[i].y;
+
+                model->ordered_faces[i].x = model->ordered_faces[j].x;
+                model->ordered_faces[i].y = model->ordered_faces[j].y;
+
+                model->ordered_faces[j].x = temp.x;
+                model->ordered_faces[j].y = temp.y;
+            }
+        }
+    }
+}
+
+void draw_model(Model *model, SDL_Renderer *renderer)
+{
+    for(int i = model->face_count -1; i >= 0; i--)
+    {
+        int index = (int)model->ordered_faces[i].x;
+        Vector3 *face;
+        face = model->faces[index];
+
+        // Count number of vertices
+        int vn = 0;
+        for(int j = 0; j < model->face_data[index]; j++)
+        {
+            if(face[j].x == -1)
+                break;
+            vn++;
+        }
+
+        // Convert points to triangles
+        // Using a simple "triangle transformation"(?I think it's called that?)
+        int n = 1;
+        SDL_Vertex g_vertices[3];
+
+        for(int j = 1; j < model->face_data[index]; j++)
+        {
+            if(j+1 >= vn)
+                break;
+
+            float scale = (float)(model->face_count-i)/model->face_count;
+
+            g_vertices[0] = model->screen_vertices[face[0].x];
+            g_vertices[1] = model->screen_vertices[face[j].x];
+            g_vertices[2] = model->screen_vertices[face[j+1].x];
+
+            // Apply depth-relative gray scale
+            for(int k = 0; k < 3; k++)
+            {
+                g_vertices[k].color.r = 255 * scale;
+                g_vertices[k].color.g = 255 * scale;
+                g_vertices[k].color.b = 255 * scale;
+            }
+
+            // Extract vectors for vector calculation
+            Vector2f a = {0}, b = {0}, c = {0};
+            a.x = g_vertices[0].position.x;
+            a.y = g_vertices[0].position.y;
+            b.x = g_vertices[1].position.x;
+            b.y = g_vertices[1].position.y;
+            c.x = g_vertices[2].position.x;
+            c.y = g_vertices[2].position.y;
+
+            Vector2f mod_a = {0};
+            Sub(b, a, &mod_a);
+
+            Vector2f mod_b = {0};
+            Sub(c, a, &mod_b);
+
+            // Back face culling (very simple method of drawing too)
+            // If the cross product between the modified vectors is less than 0, then they should not
+            // be rendered.
+            if(Cross(mod_a, mod_b) >= 0)
+            {
+                SDL_RenderGeometry(renderer, NULL, g_vertices, 3, NULL, 0);
+            }
+        }
+    }
+}
+
 void get_vertex_vector(Vector3f *out, char *line, int len)
 {
     char keyword[6];
@@ -175,7 +339,6 @@ void get_normal_vector(Vector3f *out, char *line, int len)
         while(line[i] != ' ') i++;
         end_ptr = &line[i];
         out->x = strtof(start_ptr, &end_ptr);
-        //printf("X: %f ", out->x);
 
         // Read y value
         i++;
@@ -183,7 +346,6 @@ void get_normal_vector(Vector3f *out, char *line, int len)
         while(line[i] != ' ') i++;
         end_ptr = &line[i];
         out->y = strtof(start_ptr, &end_ptr);
-        //printf("Y: %f ", out->y);
 
         // Read z value
         i++;
@@ -191,7 +353,6 @@ void get_normal_vector(Vector3f *out, char *line, int len)
         while(line[i] != ' ') i++;
         end_ptr = &line[i];
         out->z = strtof(start_ptr, &end_ptr);
-        //printf("Z: %f \n", out->z);
     }
 }
 
@@ -213,7 +374,7 @@ int get_faces(Vector3 *out, char *line, int len)
         {
             char *start_ptr, *end_ptr;
             i++;
-            
+
             if(i >= len) break;
 
             start_ptr = &line[i];
@@ -241,38 +402,8 @@ int get_faces(Vector3 *out, char *line, int len)
             out[k].x -= 1;
         }
         //model->face_data[i] = count;
+        //printf("Vertex count in this face: %d\n", count);
         return count;
-        /*for(int j = 0; j < 5; j++)
-          {
-            char *start_ptr, *end_ptr;
-            i++;
-
-            start_ptr = &line[i];
-            while(line[i] != ' ' && line[i] != '\n') i++;
-            end_ptr = &line[i];
-
-            // Get vertex index
-            char data[32];
-            int data_len = (end_ptr - start_ptr);
-            strncpy(data, start_ptr, data_len);
-            data[data_len] = '\0';
-
-            char *str = strtok(data, "/");
-            // Save vertex to out
-            out[j].x = (int)strtol(str, &str + strlen(str) , 10);
-            //str = strtok(NULL, "/");
-            //out[j].z = (int)strtol(str, &str + strlen(str), 10);
-            if(line[i] == '\n')
-                break;
-        }
-
-        // Subtract 1 from all to be used as indexes.
-        // -1 means that there is nothing to connect to
-        for(int k = 0; k < 5; k++)
-        {
-        out[k].x -= 1;
-        //out[k].z -= 1;
-        }*/
     }
 }
 
