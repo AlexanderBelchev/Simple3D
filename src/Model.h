@@ -1,11 +1,14 @@
+#ifndef MODEL_H
+#define MODEL_H
+
 #define MODEL_SIZE 80000 
 #define FACES_SIZE (int)(MODEL_SIZE * 2)
 
 #include "Vector.h"
 
-#ifndef MATRIX_H
+
 #include "Matrix.h"
-#endif
+
 
 #include <SDL2/SDL_render.h>
 
@@ -18,6 +21,7 @@ typedef struct{
     // number of vertices in face
     // index in array is index of face
     int *face_data;
+    float *vertex_scale;
 
     SDL_Vertex screen_vertices[MODEL_SIZE];
     Vector3f screen[MODEL_SIZE];
@@ -33,6 +37,9 @@ typedef struct{
 
 
 void load_model(Model *model, const char* filepath);
+
 void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *projection_matrix);
 void sort_faces(Model *model);
 void draw_model(Model *model, SDL_Renderer *renderer);
+
+#endif // MODEL_H

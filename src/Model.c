@@ -44,15 +44,14 @@ void load_model(Model *model, const char* filepath)
 
         // Count number of faces
         f = get_keyword_count("f", file_ptr);
-
-        model->normals = malloc(n * sizeof(Vector3f));
-        for(int k = 0; k < n; k++)
-            model->normals[k] = (Vector3f){0};
         printf("Faces count: %d\n", f);
 
 
         // Count number of vertex normals
         n = get_keyword_count("vn", file_ptr);
+        model->normals = malloc(n * sizeof(Vector3f));
+        for(int k = 0; k < n; k++)
+            model->normals[k] = (Vector3f){0};
 
         model->faces = malloc(f*sizeof(model->faces));
         model->face_data = malloc(f*sizeof *model->face_data);
@@ -92,8 +91,8 @@ void load_model(Model *model, const char* filepath)
             }
             else if(strcmp(keyword, "vn") == 0)
             {
-                //get_normal_vector(&model->normals[n_i], line_buffer, strlen(line_buffer));
-                //n_i++;
+                get_normal_vector(&model->normals[n_i], line_buffer, strlen(line_buffer));
+                n_i++;
             }
             else if(strcmp(keyword, "f") == 0)
             {
@@ -163,12 +162,14 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
         // Convert to screen space
         int x = (result_vertex.x + 1) * 0.5 * 1920;
         int y = (result_vertex.y + 1) * 0.5 * 1080;
+
         float depth = result_vertex.z;
+
         Vector3f *v = &model->screen[i];
         SDL_Vertex *vert = &model->screen_vertices[i];
         vert->position.x = x;
         vert->position.y = y;
-        v->z = depth * 100;
+        v->z = depth;
 
         vert->color.r = 255;
         vert->color.g = 255;
@@ -182,11 +183,44 @@ void sort_faces(Model *model)
     model->ordered_faces = malloc(model->face_count * sizeof *model->ordered_faces);
     memset(model->ordered_faces, 0, model->face_count * sizeof *model->ordered_faces);
 
+    model->vertex_scale = malloc(model->vertex_count * sizeof *model->vertex_scale);
+
     // Set index and corresponding depth value for each face at index i
     for(int i = 0; i < model->face_count; i++)
     {
         model->ordered_faces[i].x = i;
-        model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
+        
+        float average_depth = 0;
+        float scale = 0;
+        // Calculate average depth value, calculate normal vectors
+        for(int j = 0; j < model->face_data[i]; j++)
+        {
+            // Calculate vector normal
+            // Don't compensate for position
+            // TODO: Compensate for position
+            // TODO: Don't use the model normals, calculate the average normal for each face
+            //  this will result in flat shading
+            Vector3f camera_direction = {0, 0, -1}; // Since the camera looks at -Z
+            int normal_index = model->faces[i][j].z;
+            Vector3f vertex_normal = model->normals[normal_index];
+            float dot = Dot3f(camera_direction, vertex_normal);
+            float cam_mag = 1;
+            float vertex_mag = Magnitude3f(vertex_normal);
+            // Angle value is between -1 and 1
+            // -1 facing towards camera
+            // 1 facing away from camera
+            float angle = dot / (cam_mag + vertex_mag);
+             
+            scale = -1 * (angle + 1)/2;
+            model->vertex_scale[normal_index] = scale;
+
+            average_depth += model->screen[model->faces[i][j].x].z; // Depth value of vertex
+        }
+        average_depth /= model->face_data[i]; // Divide by number of vertices to get average
+
+        //model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
+        model->ordered_faces[i].y = average_depth;
+
     }
 
     // Sort by largest depth number
@@ -246,6 +280,11 @@ void draw_model(Model *model, SDL_Renderer *renderer)
             // Apply depth-relative gray scale
             for(int k = 0; k < 3; k++)
             {
+                int vertex_index = face[0].x;
+                if(k != 0)
+                    vertex_index = face[j-1 + k].x;
+                // Get scale, relative to vector normal value
+                scale = model->vertex_scale[vertex_index];
                 g_vertices[k].color.r = 255 * scale;
                 g_vertices[k].color.g = 255 * scale;
                 g_vertices[k].color.b = 255 * scale;

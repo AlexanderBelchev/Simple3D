@@ -2,28 +2,20 @@
 #include <math.h>
 #include <SDL2/SDL.h>
 
-#include "Matrix.h" // Matrix.h includes Vector.h
+//#include "Matrix.h" // Matrix.h includes Vector.h
 #include "Model.h"  // Model.h includes Vector.h
+
+#include "Camera.h" // Camera.h includes Matrix.h
 
 int main()
 {
-    float fov = 90;
-    float near = 0.1;
-    float far = 100;
-
     int width = 1920;
     int height = 1080;
 
-    float ratio = (float)width/(float)height;
-    printf("ratio: %f\n", ratio);
-    float top = tan(fov/2) * near;
-    float bottom = -top;
-    float right = top * ratio;
-    float left = bottom * ratio;
-
     Matrix4x4 transform_matrix= {0};
 
-    Matrix4x4 projection_matrix = {0};
+    initialize_camera(width, height, 90.0, 0.1, 100);
+    printf("FOV: %f\n", fov);
     SetFrustumMatrix(&projection_matrix, near, far, left, right, bottom, top);
 
     SDL_Window *window;
@@ -50,7 +42,7 @@ int main()
     Model cube = {0};
     Model monkey = {0};
     //load_model(&cube, "models/Bf-109E3.obj");
-    load_model(&cube, "models/Mig15.obj");
+    load_model(&cube, "models/cube.obj");
     load_model(&monkey, "models/monkey.obj");
     //load_model(&cube, "models/Mig15.obj");
     cube.position.x = 0;
