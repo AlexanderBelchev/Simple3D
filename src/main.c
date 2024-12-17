@@ -2,9 +2,16 @@
 #include <math.h>
 #include <SDL2/SDL.h>
 
-//#include "Matrix.h" // Matrix.h includes Vector.h
 #include "Model.h"  // Model.h includes Vector.h
 
+/* -Camera.h
+ * Contains all camera relevant information
+ * ratio, fov, near, far, bottom, top, left, right
+ * projection_matrix
+ *
+ * - Already includes Matrix.h 
+ *   Matrix.h also includes Vector.h
+ */
 #include "Camera.h" // Camera.h includes Matrix.h
 
 int main()
@@ -14,7 +21,7 @@ int main()
 
     Matrix4x4 transform_matrix= {0};
 
-    initialize_camera(width, height, 90.0, 0.1, 100);
+    InitializeCamera(width, height, 90.0, 0.1, 100);
     printf("FOV: %f\n", fov);
     SetFrustumMatrix(&projection_matrix, near, far, left, right, bottom, top);
 
@@ -41,21 +48,24 @@ int main()
     // After init, load model
     Model cube = {0};
     Model monkey = {0};
-    //load_model(&cube, "models/Bf-109E3.obj");
-    load_model(&cube, "models/cube.obj");
-    load_model(&monkey, "models/monkey.obj");
-    //load_model(&cube, "models/Mig15.obj");
+
+    //load_model(&cube, "models/cube.obj");
+    //load_model(&monkey, "models/monkey.obj");
+    load_model(&monkey, "models/stair.obj");
+
     cube.position.x = 0;
     cube.position.y = 0;
     cube.position.z = -30;
 
     monkey.position.z = -15;
-    monkey.position.x = - 5;
+    monkey.position.x = 0;
+    //monkey.rotation.y = 45;
 
     int quit = 0;
     SDL_Event event;
 
-    while(!quit){
+    while(!quit)
+    {
         while(SDL_PollEvent(&event))
         {
             if(event.type == SDL_QUIT)
@@ -65,16 +75,17 @@ int main()
         }
         SDL_RenderClear(renderer);
 
-        cube.rotation.x += 0.015;
-        cube.rotation.y += 0.01;
-        cube.rotation.z += 0.008;
+        //cube.rotation.x += 0.015;
+        //cube.rotation.y += 0.01;
+        //cube.rotation.z += 0.008;
 
         monkey.rotation.y -= 0.02;
+        monkey.rotation.x += 0.01;
         // Draw to screen
 
-        calculate_vertices(&cube, &transform_matrix, &projection_matrix);
-        sort_faces(&cube);
-        draw_model(&cube, renderer);
+        //calculate_vertices(&cube, &transform_matrix, &projection_matrix);
+        //sort_faces(&cube);
+        //draw_model(&cube, renderer);
 
         calculate_vertices(&monkey, &transform_matrix, &projection_matrix);
         sort_faces(&monkey);

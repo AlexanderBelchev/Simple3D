@@ -1,0 +1,62 @@
+# This file describes the standard used when writing code
+# for this project. Following it is necessary to keep the
+# code readable, due to it's growing number of files and
+# lines.
+
+First let's define what this project is:
+    This project is a library for simple 3D graphics, it contains 
+    functions and data types to allow for these graphics to happen
+    as easily and quickly as possible. 
+    The 2D rendering is handled by SDL, to simplify the whole rendering
+    pipeline, so we don't have to bother with cross platform functionality,
+    driver specifics, etc.
+
+Because this aims to be a library, the main.c file is used as a 
+demonstration(demo) for the whole library and it's functionality.
+This means that it should be kept clear of data that is 
+related to the functionality of the library. It should not define
+functions, data structures, variables, pointers or anything
+else that the library would use to work properly.
+- This doesn't count if said data is used to display the functionality
+  of the library. For example, having an "instance" of a Model struct
+  is allowed, because that is used to load models and then display them
+  to the screen. What you cannot do is, change their structure inside
+  of the main.c file or define functions that the library itself uses,
+  inside of the main.c file.
+
+Syntax standard:
+
+- Curcly brackets
+They should start on a new line
+Example:
+if(...)
+{
+    //...
+}
+else //if(...)
+{
+    //...
+}
+This applies to:
+for, while - loops
+function definitions
+It also applies to struct definitions
+
+- Variable and function names
+Local variables and functions should be named in snake case
+Examples:
+int important_num = 5;
+void calculate_foo(int *p_num)
+{
+    //...
+}
+This is for every scope local variable/function
+
+Global functions and types should be named in Pascal Case
+typedef struct
+{
+    int n;
+} NewType;
+void GetViewMatrix(/*...,...*/);
+
+

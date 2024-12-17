@@ -24,4 +24,7 @@ float Magnitude3f(Vector3f a);
 float Dot3f(Vector3f a, Vector3f b);
 float Angle3f(Vector3f a, Vector3f b);
 
+void Multiply3f(Vector3f a, Vector3f b, Vector3f *out);
+void Cross3f(Vector3f u, Vector3f v, Vector3f *out);
+
 #endif /* VECTOR_H */

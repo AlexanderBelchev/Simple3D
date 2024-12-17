@@ -39,7 +39,7 @@ void Normalize3f(Vector3f a, Vector3f *out)
 
 float Magnitude3f(Vector3f a)
 {
-    return sqrt((a.x*a.x) + (a.y*a.y) + (a.z*a.z));
+    return sqrt(fabs((a.x*a.x) + (a.y*a.y) + (a.z*a.z)));
 }
 
 float Dot3f(Vector3f a, Vector3f b)
@@ -48,3 +48,10 @@ float Dot3f(Vector3f a, Vector3f b)
 }
 
 //float Angle3f(
+
+void Cross3f(Vector3f u, Vector3f v, Vector3f *out)
+{
+    out->x = u.y*v.z - u.z*v.y;
+    out->y = u.z*v.x - u.x*v.z;
+    out->z = u.x*v.y - u.y*v.x;
+}

@@ -4,19 +4,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Local functions for this file only
+/*------ Local functions for this file only ------*/
 void get_vertex_vector(Vector3f *out, char *line, int len);
 
 // Return the number of vertices in the face
 int get_faces(Vector3 *out, char *line, int len);
 
+// Get the face normal index and set it to the *out pointer
 void get_face_normals(Vector3 *out, char *line, int len);
 
+// Get the normal vector and save it to the *out pointer
 void get_normal_vector(Vector3f *out, char *line, int len);
 
+// Return the number of times "key" appears in a file
+// This DOESN'T reset the file cursor to the start <--------------- IMPORTANT
 int get_keyword_count(const char* key, FILE *file_ptr);
 
-// End of local function definities
+/*------ End of local function definities ------*/
 
 void load_model(Model *model, const char* filepath)
 {
@@ -37,8 +41,12 @@ void load_model(Model *model, const char* filepath)
         v = get_keyword_count("v", file_ptr);
         // Allocate memory for vertices
         model->vertices = malloc(v * sizeof(Vector3f));
+        model->rotated_vertices = malloc(v*sizeof(Vector3f));
         for(int k = 0; k < v; k++)
+        {
             model->vertices[k] = (Vector3f){0};
+            model->rotated_vertices[k] = (Vector3f){0};
+        }
 
         printf("Vertex count: %d\n", v);
 
@@ -53,12 +61,15 @@ void load_model(Model *model, const char* filepath)
         for(int k = 0; k < n; k++)
             model->normals[k] = (Vector3f){0};
 
-        model->faces = malloc(f*sizeof(model->faces));
+        model->faces = malloc(f*sizeof *model->faces);
         model->face_data = malloc(f*sizeof *model->face_data);
+        model->face_normal = malloc(f*sizeof *model->face_data);
+        model->face_scale = malloc(f*sizeof *model->face_scale);
 
         for(int j = 0; j < f; j++)
         {
             model->face_data[j] = 0;
+            model->face_normal[j] = (Vector3f){0};
             model->faces[j] = malloc(5*sizeof(Vector3));
             for(int k = 0; k < 5; k++)
             {
@@ -91,8 +102,9 @@ void load_model(Model *model, const char* filepath)
             }
             else if(strcmp(keyword, "vn") == 0)
             {
-                get_normal_vector(&model->normals[n_i], line_buffer, strlen(line_buffer));
-                n_i++;
+                // Vertex normal
+                //get_normal_vector(&model->normals[n_i], line_buffer, strlen(line_buffer));
+                //n_i++;
             }
             else if(strcmp(keyword, "f") == 0)
             {
@@ -107,7 +119,7 @@ void load_model(Model *model, const char* filepath)
         printf("End of file\n");
         fclose(file_ptr);
         printf("File closed\n");
-    }
+    } 
     else
     {
         fprintf(stderr, "Unable to open file!\n");
@@ -150,6 +162,7 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
         // Apply camera matrix 
         MultiplyPointBy4x4(&z_rotation_result, &transform_matrix, &transform_result_vertex);
 
+        model->rotated_vertices[i] = (Vector3f)transform_result_vertex;
         // Apply projection
         MultiplyPointBy4x4(&transform_result_vertex, projection_matrix, &result_vertex);
 
@@ -178,12 +191,17 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
     }
 }
 
+//TODO: Something in this function, either a variable assignment or something else
+//causes a Aborted(core dumped). I have to go over each variable, especially pointers
+//and arrays, and see their life-cycle to understand where a problem could occur.
+//Maybe it's just a simple mistake. Hopefully.
 void sort_faces(Model *model)
 {
     model->ordered_faces = malloc(model->face_count * sizeof *model->ordered_faces);
     memset(model->ordered_faces, 0, model->face_count * sizeof *model->ordered_faces);
 
     model->vertex_scale = malloc(model->vertex_count * sizeof *model->vertex_scale);
+    memset(model->vertex_scale, 0, model->vertex_count * sizeof *model->vertex_scale);
 
     // Set index and corresponding depth value for each face at index i
     for(int i = 0; i < model->face_count; i++)
@@ -192,35 +210,90 @@ void sort_faces(Model *model)
         
         float average_depth = 0;
         float scale = 0;
-        // Calculate average depth value, calculate normal vectors
+        // Calculate average depth value
         for(int j = 0; j < model->face_data[i]; j++)
         {
-            // Calculate vector normal
-            // Don't compensate for position
-            // TODO: Compensate for position
-            // TODO: Don't use the model normals, calculate the average normal for each face
-            //  this will result in flat shading
-            Vector3f camera_direction = {0, 0, -1}; // Since the camera looks at -Z
-            int normal_index = model->faces[i][j].z;
-            Vector3f vertex_normal = model->normals[normal_index];
-            float dot = Dot3f(camera_direction, vertex_normal);
-            float cam_mag = 1;
-            float vertex_mag = Magnitude3f(vertex_normal);
-            // Angle value is between -1 and 1
-            // -1 facing towards camera
-            // 1 facing away from camera
-            float angle = dot / (cam_mag + vertex_mag);
-             
-            scale = -1 * (angle + 1)/2;
-            model->vertex_scale[normal_index] = scale;
-
+            // Get z-depth of vertex
             average_depth += model->screen[model->faces[i][j].x].z; // Depth value of vertex
         }
         average_depth /= model->face_data[i]; // Divide by number of vertices to get average
 
+
+        Vector3f tmp_normal = {0};
+        //printf("Face %d\n", i);
+        model->face_normal[i] = (Vector3f){0};
+        // Calculate face normal -- FLAT SHADING
+        for(int j = 1; j < model->face_data[i]; j++)
+        {
+            if(j+1 >= model->face_data[i])
+                break;
+
+            // A face consists of triangles. Each one starts at vertex 0 of the face
+            Vector3f a = model->rotated_vertices[model->faces[i][0].x];
+            Vector3f b = model->rotated_vertices[model->faces[i][j].x];
+            Vector3f c = model->rotated_vertices[model->faces[i][j+1].x];
+            //printf("A(%f, %f, %f)\n", a.x, a.y, a.z);
+            //printf("B(%f, %f, %f)\n", b.x, b.y, b.z);
+            //printf("C(%f, %f, %f)\n", c.x, c.y, c.z);
+
+            // Calculate Vectors from points
+            // Calculation of normals is as such N = (ABxAC)/mag(ABxAC)
+            // Calculating Vector AB
+            Vector3f ab = {0};
+            Sub3f(b, a, &ab);
+            //Sub3f(a, b, &ab);
+            //printf("AB(%f, %f, %f)\n", ab.x, ab.y, ab.z);
+            // Calculating Vector AC
+            Vector3f ac = {0};
+            Sub3f(c, a, &ac);
+            //Sub3f(a, c, &ac);
+            //printf("AC(%f, %f, %f)\n", ac.x, ac.y, ac.z);
+
+            // Normalized cross product of (b-a, c-a) returns the normal vector 
+            Cross3f(ab, ac, &tmp_normal);
+            //printf("After cross (%f, %f, %f)\n", tmp_normal.x, tmp_normal.y, tmp_normal.z);
+            Normalize3f(tmp_normal, &tmp_normal);
+
+            // Calculate and save the average direction
+            Vector3f *p_face_normal = (Vector3f*)&model->face_normal[i];
+            p_face_normal->x += tmp_normal.x;
+            p_face_normal->y += tmp_normal.y;
+            p_face_normal->z += tmp_normal.z;
+
+            /*int div = (j == 1)? 1 : 2;
+            p_face_normal->x = (p_face_normal->x + tmp_normal.x)/div;
+            p_face_normal->y = (p_face_normal->y + tmp_normal.y)/div;
+            p_face_normal->z = (p_face_normal->z + tmp_normal.z)/div;*/
+        }
+        //printf("Normal (%f, %f, %f)\n", model->face_normal[i].x, model->face_normal[i].y,
+        //                                model->face_normal[i].z);
+
+        // Calculate the face scale. Angle between camera_direction and normal vector.
+        // a = -1 means that they face eachother
+        // a > 0 -> means that they are not facing each other or are perpendicular
+        
+        int triangles = (model->face_data[i]-3)+1;
+        model->face_normal[i].x /= triangles;
+        model->face_normal[i].y /= triangles;
+        model->face_normal[i].z /= triangles;
+        // TODO: Camera direction is not in -z but in z, maybe this is affected because of the 
+        // calculation of the dot product, or maybe the vectors are inverted. Worst case it's 
+        // one of the matrices.
+        Vector3f camera_direction = {0, 0, 1};
+        float dot = Dot3f(camera_direction, model->face_normal[i]);
+        /*model->face_scale[i] = 
+            dot / (Magnitude3f(camera_direction) + Magnitude3f(model->face_normal[i]));
+        printf("Dot %f\n", dot);
+        printf("Mag %f\n", (Magnitude3f(camera_direction)+Magnitude3f(model->face_normal[i])));*/
+        //printf("Cos a %f\n", model->face_scale[i]);
+        //TODO: I don't like how this is the angle at which the face is facing the camera.
+        //      Perhaps I have misunderstood how the formula works, because it didn't use 
+        //      the dot product, to my knowledge at least. Altough I think dot product is
+        //      the angle between these vectors...idk. I have to check it out later.
+        model->face_scale[i] = dot;
+
         //model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
         model->ordered_faces[i].y = average_depth;
-
     }
 
     // Sort by largest depth number
@@ -284,7 +357,8 @@ void draw_model(Model *model, SDL_Renderer *renderer)
                 if(k != 0)
                     vertex_index = face[j-1 + k].x;
                 // Get scale, relative to vector normal value
-                scale = model->vertex_scale[vertex_index];
+                //scale = model->vertex_scale[vertex_index];
+                scale = model->face_scale[index];
                 g_vertices[k].color.r = 255 * scale;
                 g_vertices[k].color.g = 255 * scale;
                 g_vertices[k].color.b = 255 * scale;
