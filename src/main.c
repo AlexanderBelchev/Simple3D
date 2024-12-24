@@ -49,9 +49,9 @@ int main()
     Model cube = {0};
     Model monkey = {0};
 
-    //load_model(&cube, "models/cube.obj");
-    //load_model(&monkey, "models/monkey.obj");
-    load_model(&monkey, "models/stair.obj");
+    load_model(&cube, "models/cube.obj");
+    load_model(&monkey, "models/monkey.obj");
+    //load_model(&monkey, "models/stair.obj");
 
     cube.position.x = 0;
     cube.position.y = 0;
@@ -64,6 +64,7 @@ int main()
     int quit = 0;
     SDL_Event event;
 
+    int mouse_x = 0, mouse_y = 0;
     while(!quit)
     {
         while(SDL_PollEvent(&event))
@@ -73,14 +74,17 @@ int main()
                 quit = 1;
             } 
         }
+        SDL_GetMouseState(&mouse_x, &mouse_y);
         SDL_RenderClear(renderer);
 
-        //cube.rotation.x += 0.015;
-        //cube.rotation.y += 0.01;
-        //cube.rotation.z += 0.008;
+        cube.rotation.x += 0.015;
+        cube.rotation.y += 0.01;
+        cube.rotation.z += 0.008;
 
-        monkey.rotation.y -= 0.02;
-        monkey.rotation.x += 0.01;
+        //monkey.rotation.y -= 0.02;
+        //monkey.rotation.x += 0.01;
+        monkey.rotation.y = -M_PI + (((float)mouse_x/width)*(2*M_PI));
+        monkey.rotation.x = -M_PI + (((float)mouse_y/height)*(2*M_PI));
         // Draw to screen
 
         //calculate_vertices(&cube, &transform_matrix, &projection_matrix);

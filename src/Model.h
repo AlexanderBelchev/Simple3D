@@ -17,9 +17,6 @@ typedef struct
     // Array of vectors, representing the position of vertices, with applied rotation
     Vector3f *rotated_vertices;
 
-    // Array of vectors, representing the vertex normals.
-    Vector3f *normals;
-
     /* Vector array containing faces and their data as a vector [FACES_SIZE][n] where
      * n is the numbert of vertices in the face
      * faces[i][j] - i is the index of the face, j is the index/order of the vertex in the face
@@ -35,7 +32,6 @@ typedef struct
     Vector3f *face_normal;
     
     // This is used when drawing -- TODO: just a testing variable
-    float *vertex_scale;
     float *face_scale;
 
     // SDL_Vertex points, used when drawing faces to the screen. Projected screen points.
