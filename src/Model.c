@@ -10,15 +10,12 @@ void get_vertex_vector(Vector3f *out, char *line, int len);
 // Return the number of vertices in the face
 int get_faces(Vector3 *out, char *line, int len);
 
-// Get the face normal index and set it to the *out pointer
-void get_face_normals(Vector3 *out, char *line, int len);
-
 // Get the normal vector and save it to the *out pointer
 void get_normal_vector(Vector3f *out, char *line, int len);
 
 // Return the number of times "key" appears in a file
 // This DOESN'T reset the file cursor to the start <--------------- IMPORTANT
-int get_keyword_count(const char* key, FILE *file_ptr);
+int get_keyword_count(const char *key, FILE *file_ptr);
 
 /*------ End of local function definities ------*/
 
@@ -101,7 +98,6 @@ void load_model(Model *model, const char* filepath)
             else if(strcmp(keyword, "f") == 0)
             {
                 model->face_data[f_i] = get_faces(model->faces[f_i], line_buffer, strlen(line_buffer));
-                get_face_normals(model->faces[f_i], line_buffer, strlen(line_buffer));
                 f_i++;
             }
         }
@@ -186,12 +182,14 @@ void sort_faces(Model *model)
         // calculation of the dot product, or maybe the vectors are inverted. Worst case it's 
         // one of the matrices.
         Vector3f camera_direction = {0, 0, 1};
-        float dot = Dot3f(camera_direction, model->face_normal[i]);
+        //float dot = Dot3f(camera_direction, model->face_normal[i]);
+        float angle = Angle3f(camera_direction, model->face_normal[i]);
         //TODO: I don't like how this is the angle at which the face is facing the camera.
         //      Perhaps I have misunderstood how the formula works, because it didn't use 
         //      the dot product, to my knowledge at least. Altough I think dot product is
         //      the angle between these vectors...idk. I have to check it out later.
-        model->face_scale[i] = dot;
+        //model->face_scale[i] = dot;
+        model->face_scale[i] = angle;
 
         //model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
         model->ordered_faces[i].y = average_depth;
@@ -326,8 +324,8 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
         // Let's see if the vertex point is visible
         if(result_vertex.x > 1 || result_vertex.x < -1 ||
                 result_vertex.y > 1 || result_vertex.y < -1 ||
-                result_vertex.z < 0)
-            continue;   // Point isn't visible
+                result_vertex.z < 0);
+            //continue;   // Point isn't visible
 
         // Convert to screen space
         int x = (result_vertex.x + 1) * 0.5 * 1920;
@@ -464,6 +462,8 @@ int get_faces(Vector3 *out, char *line, int len)
             // Save vertex to out
             out[j].x = (int)strtol(str, &str + strlen(str) , 10);
 
+            // Remove the first character of the line, to prepare for the get_split_value function
+
             count++;    //<--------------------------IF SOMETHING CAUSES A SF, IT'S THIS
             j++;
         }
@@ -476,52 +476,6 @@ int get_faces(Vector3 *out, char *line, int len)
         //model->face_data[i] = count;
         //printf("Vertex count in this face: %d\n", count);
         return count;
-    }
-}
-
-void get_face_normals(Vector3 *out, char *line, int len)
-{
-    char keyword[6];
-    int i = 0;
-    while(line[i] != ' ' && i < len)
-    {
-        keyword[i] = line[i];
-        i++;
-    }
-    keyword[i] = '\0';
-    if(strcmp(keyword, "f") == 0)
-    {
-        for(int j = 0; j < 5; j++)
-        {
-            char *start_ptr, *end_ptr;
-            i++;
-
-            start_ptr = &line[i];
-            while(line[i] != ' ' && line[i] != '\n') i++;
-            end_ptr = &line[i];
-
-            // Get vertex index
-            char data[32];
-            int data_len = (end_ptr - start_ptr);
-            strncpy(data, start_ptr, data_len);
-            data[data_len] = '\0';
-
-            char *str = strtok(data, "/"); // first
-            str = strtok(NULL, "/");       // second
-            str = strtok(NULL, "/");       // third - the normals 
-
-            // Save vertex to out
-            out[j].z = (int)strtol(str, &str + strlen(str) , 10);
-            if(line[i] == '\n')
-                break;
-        }
-
-        // Subtract 1 from all to be used as indexes.
-        // -1 means that there is nothing to connect to
-        for(int k = 0; k < 5; k++)
-        {
-            out[k].z -= 1;
-        }
     }
 }
 
