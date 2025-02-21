@@ -17,7 +17,7 @@ void get_normal_vector(Vector3f *out, char *line, int len);
 // This DOESN'T reset the file cursor to the start <--------------- IMPORTANT
 int get_keyword_count(const char *key, FILE *file_ptr);
 
-/*------ End of local function definities ------*/
+/*------ End of local function definitions ------*/
 
 void load_model(Model *model, const char* filepath)
 {
