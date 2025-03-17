@@ -33,21 +33,21 @@ The current iteration of the project loads a monkey head model from blender, exp
 The file is being read so until that is finished the program wont continue.
 When the file gets loaded, the model will appear on the screen.
 
-<img src="/images/01.png" width="400">
+<img src="/Images/01.png" width="400">
 
 If you move your mouse around you will notice that the model will also rotated according to the movement of the mouse
 
-<img src="/images/02.png" width="400">
+<img src="/Images/02.png" width="400">
 
 This works, and you can also see that there is shading on each face of the model, it's not smooth shading, it's an average shade for the whole face, but it still has the desired effect of giving depth to the model.
 There is on problem with it. The program works best when you use faces constructed of 3 vertices. If the faces have more than 3 vertices and a complex shape, one that is not flat, the shading will be messed up.
 One such example can be seen here.
 
-<img src="/images/03.png" width="400">
+<img src="/Images/03.png" width="400">
 
 You can see there is an almost, if not completely black face around the left cheek. Now, moving the mouse just a little bit results in this
 
-<img src="/images/04.png" width="400">
+<img src="/Images/04.png" width="400">
 
 The face has now turned completely white. This happens because the algorithm that is being used is made to work with flat faces made up of 3 vertices, and complex vertices don't work great with it.
 The solution to this is to either break up the face into more faces in the program, or to fix the actual model.
