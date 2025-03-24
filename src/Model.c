@@ -160,7 +160,6 @@ void sort_faces(Model *model)
 
             // Normalized cross product of (b-a, c-a) returns the normal vector 
             Cross3f(ab, ac, &tmp_normal);
-            //printf("After cross (%f, %f, %f)\n", tmp_normal.x, tmp_normal.y, tmp_normal.z);
             Normalize3f(tmp_normal, &tmp_normal);
 
             // Calculate and save the average direction
