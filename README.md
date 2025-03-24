@@ -40,7 +40,10 @@ If you move your mouse around you will notice that the model will also rotated a
 <img src="/Images/02.png" width="400">
 
 This works, and you can also see that there is shading on each face of the model, it's not smooth shading, it's an average shade for the whole face, but it still has the desired effect of giving depth to the model.
-There is on problem with it. The program works best when you use faces constructed of 3 vertices. If the faces have more than 3 vertices and a complex shape, one that is not flat, the shading will be messed up.
+
+## Downsides
+### Shading method - Flat shading
+There is one problem with the flat shading. The program works best when you use faces constructed of 3 vertices. If the faces have more than 3 vertices and a complex shape, one that is not flat, the shading will be messed up.
 One such example can be seen here.
 
 <img src="/Images/03.png" width="400">
@@ -51,3 +54,108 @@ You can see there is an almost, if not completely black face around the left che
 
 The face has now turned completely white. This happens because the algorithm that is being used is made to work with flat faces made up of 3 vertices, and complex vertices don't work great with it.
 The solution to this is to either break up the face into more faces in the program, or to fix the actual model.
+#### Root of this problem
+The root of this problem is the algorithm that is at work when doing the flat shading.
+This is the code that applies the flat shading:
+```c
+Model.c -- The line numbers might not match
+246             // Apply flat shading
+247             for(int k = 0; k < 3; k++)
+248             {
+249                 int vertex_index = face[0].x;
+250                 if(k != 0)
+251                     vertex_index = face[j-1 + k].x;
+252 
+253                 // Get scale for shading.
+254                 float scale = model->face_scale[index];
+255                 g_vertices[k].color.r = 255 * scale;
+256                 g_vertices[k].color.g = 255 * scale;
+257                 g_vertices[k].color.b = 255 * scale;
+258             }
+```
+this code however **only** applies the shading and does not calculate it.
+The code that calculates *model->face_scale* (the variable that describes the shade of the face) looks like this:
+```c
+Model.c -- The line numbers might not match
+141         // Calculate face normal -- FLAT SHADING
+142         for(int j = 1; j < model->face_data[i]; j++)
+143         {
+144             if(j+1 >= model->face_data[i])
+145                 break;
+146 
+147             // A face consists of triangles. Each one starts at vertex 0 of the face
+148             Vector3f a = model->rotated_vertices[model->faces[i][0].x];
+149             Vector3f b = model->rotated_vertices[model->faces[i][j].x];
+150             Vector3f c = model->rotated_vertices[model->faces[i][j+1].x];
+151 
+152             // Calculate Vectors from points
+153             // Calculation of normals is as such N = (ABxAC)/mag(ABxAC)
+154             // Calculating Vector AB
+155             Vector3f ab = {0};   
+156             Sub3f(b, a, &ab);
+157             // Calculating Vector AC
+158             Vector3f ac = {0};
+159             Sub3f(c, a, &ac);
+160 
+161             // Normalized cross product of (b-a, c-a) returns the normal vector 
+162             Cross3f(ab, ac, &tmp_normal);
+163             //printf("After cross (%f, %f, %f)\n", tmp_normal.x, tmp_normal.y, tmp_normal.z);
+164             Normalize3f(tmp_normal, &tmp_normal);
+165 
+166             // Calculate and save the average direction
+167             Vector3f *p_face_normal = (Vector3f*)&model->face_normal[i];
+168             p_face_normal->x += tmp_normal.x;
+169             p_face_normal->y += tmp_normal.y;
+170             p_face_normal->z += tmp_normal.z;
+171         }
+172         // Calculate the face scale. Angle between camera_direction and normal vector.
+173         // a = -1 means that they face eachother
+174         // a > 0 -> means that they are not facing each other or are perpendicular
+175         
+176         int triangles = (model->face_data[i]-3)+1;
+177         model->face_normal[i].x /= triangles;
+178         model->face_normal[i].y /= triangles;
+179         model->face_normal[i].z /= triangles;
+(...)
+184         Vector3f camera_direction = {0, 0, 1};
+185         //float dot = Dot3f(camera_direction, model->face_normal[i]);
+186         float angle = Angle3f(camera_direction, model->face_normal[i]);
+(...)
+191         //model->face_scale[i] = dot;
+192         model->face_scale[i] = angle;
+
+```
+Looking at lines **167-170** and **176-179** we can see that there is an average being calculated. This is done because the algorithm calculates the shading by faces constructed of 3 vertices at a time.
+The whole face is cycled trough by first calculating 3 vertices and then the starting vertex is indexed by 1 until the last 3 vertices are reached and an average normal direction is calculated for the whole face.
+<br>
+
+It's a simple way to calculate a face normal, but it only works when the face is flat, meaning that every set of 3 *neighbouring **vertices*** has the same, or almost the same normal direction. In case one of the 3
+sets of vertices looks too far in a different direction, the face_scale will be messed up in relation to the *neighbouring **faces***
+<br>
+
+The main reason why this was done is because it leads to a less complicated structure to store the shading data...
+```c
+model.h -- The line numbers might not match
+ 12 typedef struct
+ 13 {
+ (...)
+ 20     /* Vector array containing faces and their data as a vector [FACES_SIZE][n] where
+ 21      * n is the numbert of vertices in the face 
+ 22      * faces[i][j] - i is the index of the face, j is the index/order of the vertex in the face
+ 23      * faces[i][j].x - Vertex index from *vertices
+ 24      * faces[i][j].y - Texture vertices -- TODO: not yet implemented
+ 25      * faces[i][j].z - Vertex normal -- TODO: not really needed as it is calculated on runtime
+ 26      */
+ 27     Vector3 **faces;
+ 28 
+ 29     // Array that stores the number of vertices in a face.               
+ 30     // The index i in this array is the index i of the face in **faces   
+ 31     int *face_data;
+ 32     Vector3f *face_normal;
+ (...)
+ 54 } Model;
+
+```
+This could be fixed by making an array that stores the shading data for each set of 3 vertices in a face, but it's a bit more complicated as a data structure. Color blending could be used when drawing the face to not have sharp shading transitions between the sets of 3 vertices in each face, but it's a complication that I was not willing to implement yet.
+<br>
+Another way of fixing this is to just ignore the set that differs too much from the others. The final shading result might not be perfect but it would look better.
