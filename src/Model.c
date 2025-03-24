@@ -217,6 +217,7 @@ void sort_faces(Model *model)
 }
 
 // TODO: Sometimes this causes a crash. Some array goes of out bounds perhaps
+// -- This doesn't seem to happen anymore
 void draw_model(Model *model, SDL_Renderer *renderer)
 {
     //for(int i = model->face_count-1; i >= 0; i--)
@@ -295,19 +296,19 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
         Matrix4x4 x_rotation_matrix = {0};
         Vector3f x_rotation_result = {0};
         SetXRotationMatrix(&x_rotation_matrix, model->rotation.x);
-        MultiplyPointBy4x4(vertex, &x_rotation_matrix, &x_rotation_result);
+        MulVec3By4x4(vertex, &x_rotation_matrix, &x_rotation_result);
 
         // Apply y-rotation matrix
         Matrix4x4 y_rotation_matrix = {0};
         Vector3f y_rotation_result = {0};
         SetYRotationMatrix(&y_rotation_matrix, model->rotation.y);
-        MultiplyPointBy4x4(&x_rotation_result, &y_rotation_matrix, &y_rotation_result);
+        MulVec3By4x4(&x_rotation_result, &y_rotation_matrix, &y_rotation_result);
 
         // Apply z-rotation matrix
         Matrix4x4 z_rotation_matrix = {0};
         Vector3f z_rotation_result = {0};
         SetZRotationMatrix(&z_rotation_matrix, model->rotation.z);
-        MultiplyPointBy4x4(&y_rotation_result, &z_rotation_matrix, &z_rotation_result);
+        MulVec3By4x4(&y_rotation_result, &z_rotation_matrix, &z_rotation_result);
 
 
         // Update camera matrix with model position
@@ -315,11 +316,11 @@ void calculate_vertices(Model *model, Matrix4x4 *transform_matrix, Matrix4x4 *pr
         SetTransformMatrix(&transform_matrix, model->position);
         //SetTransformMatrix(&transform_matrix, position);
         // Apply camera matrix 
-        MultiplyPointBy4x4(&z_rotation_result, &transform_matrix, &transform_result_vertex);
+        MulVec3By4x4(&z_rotation_result, &transform_matrix, &transform_result_vertex);
 
         model->rotated_vertices[i] = (Vector3f)transform_result_vertex;
         // Apply projection
-        MultiplyPointBy4x4(&transform_result_vertex, projection_matrix, &result_vertex);
+        MulVec3By4x4(&transform_result_vertex, projection_matrix, &result_vertex);
 
         // Let's see if the vertex point is visible
         if(result_vertex.x > 1 || result_vertex.x < -1 ||

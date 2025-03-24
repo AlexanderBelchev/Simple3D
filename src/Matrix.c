@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 
-void MultiplyPointBy4x4(Vector3f *vec, Matrix4x4 *mat, Vector3f *out)
+void MulVec3By4x4(Vector3f *vec, Matrix4x4 *mat, Vector3f *out)
 {
     out->x = vec->x * mat->m00 + vec->y * mat->m10 + vec->z * mat->m20 + mat->m30;
     out->y = vec->x * mat->m01 + vec->y * mat->m11 + vec->z * mat->m21 + mat->m31;
@@ -16,7 +16,7 @@ void MultiplyPointBy4x4(Vector3f *vec, Matrix4x4 *mat, Vector3f *out)
     }
 }
 
-void MultiplyPointBy3x3(Vector3f *vec, Matrix3x3 *mat, Vector3f *out)
+void MulVec3By3x3(Vector3f *vec, Matrix4x4 *mat, Vector3f *out)
 {
     out->x = vec->x * mat->m00 + vec->y * mat->m10 + vec->z * mat->m20;
     out->y = vec->x * mat->m01 + vec->y * mat->m11 + vec->z * mat->m21;

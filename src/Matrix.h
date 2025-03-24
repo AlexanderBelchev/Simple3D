@@ -23,8 +23,8 @@ typedef struct
     float x, y, z, w;
 } PointMatrix;
 
-void MultiplyPointBy4x4(Vector3f *vec, Matrix4x4 *mat, Vector3f *out);
-void MultiplyPointBy3x3(Vector3f *vec, Matrix3x3 *mat, Vector3f *out);
+void MulVec3By4x4(Vector3f *vec, Matrix4x4 *mat, Vector3f *out);
+void mulVec3By4x4(Vector3f *vec, Matrix3x3 *mat, Vector3f *out);
 
 
 void SetXRotationMatrix(Matrix4x4 *matrix, float angle);
