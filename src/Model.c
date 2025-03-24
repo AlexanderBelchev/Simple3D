@@ -138,6 +138,12 @@ void sort_faces(Model *model)
         Vector3f tmp_normal = {0};
         //printf("Face %d\n", i);
         model->face_normal[i] = (Vector3f){0};
+        int triangles = model->face_data[i];
+        triangles = triangles/triangles + (triangles-3);
+
+        Vector3f *triangle_normals = malloc(triangles * sizeof *triangle_normals);
+        int triangle_index = 0;
+
         // Calculate face normal -- FLAT SHADING
         for(int j = 1; j < model->face_data[i]; j++)
         {
@@ -162,35 +168,38 @@ void sort_faces(Model *model)
             Cross3f(ab, ac, &tmp_normal);
             Normalize3f(tmp_normal, &tmp_normal);
 
-            // Calculate and save the average direction
-            Vector3f *p_face_normal = (Vector3f*)&model->face_normal[i];
-            p_face_normal->x += tmp_normal.x;
-            p_face_normal->y += tmp_normal.y;
-            p_face_normal->z += tmp_normal.z;
+            // Collect normal vectors
+            triangle_normals[triangle_index].x = tmp_normal.x;
+            triangle_normals[triangle_index].y = tmp_normal.y;
+            triangle_normals[triangle_index].z = tmp_normal.z;
+            triangle_index++;
+
         }
-        // Calculate the face scale. Angle between camera_direction and normal vector.
-        // a = -1 means that they face eachother
-        // a > 0 -> means that they are not facing each other or are perpendicular
         
-        int triangles = (model->face_data[i]-3)+1;
-        model->face_normal[i].x /= triangles;
-        model->face_normal[i].y /= triangles;
-        model->face_normal[i].z /= triangles;
+        Vector3f camera_direction = {0, 0, -1};
+        
+        // Get angles relative to the camera, ignore all above 90
+        int n = 0;
+        int avg_angle = 0;
+        for(int j = 0; j < triangles; j++)
+        {
+            float angle = Angle3f(camera_direction, triangle_normals[j]);
+            avg_angle += angle;
+            ++n;
+        }
+        
+        float angle = 0;
+        if(n)
+            angle = avg_angle/n;
 
-        // TODO: Camera direction is not in -z but in z, maybe this is affected because of the 
-        // calculation of the dot product, or maybe the vectors are inverted. Worst case it's 
-        // one of the matrices.
-        Vector3f camera_direction = {0, 0, 1};
-        //float dot = Dot3f(camera_direction, model->face_normal[i]);
-        float angle = Angle3f(camera_direction, model->face_normal[i]);
-        //TODO: I don't like how this is the angle at which the face is facing the camera.
-        //      Perhaps I have misunderstood how the formula works, because it didn't use 
-        //      the dot product, to my knowledge at least. Altough I think dot product is
-        //      the angle between these vectors...idk. I have to check it out later.
-        //model->face_scale[i] = dot;
-        model->face_scale[i] = angle;
+        scale = angle;
+        if(scale > 90)
+            scale = (scale-90)/90;
+        else
+            scale = 0;
 
-        //model->ordered_faces[i].y = model->screen[model->faces[i][0].x].z;
+
+        model->face_scale[i] = scale;
         model->ordered_faces[i].y = average_depth;
     }
 
@@ -219,9 +228,10 @@ void sort_faces(Model *model)
 // -- This doesn't seem to happen anymore
 void draw_model(Model *model, SDL_Renderer *renderer)
 {
-    //for(int i = model->face_count-1; i >= 0; i--)
     for(int i = 0; i < model->face_count; i++)
     {
+        if(model->face_scale[(int)model->ordered_faces[i].x] <= 0)
+            continue;
         int index = (int)model->ordered_faces[i].x;
         Vector3 *face;
         face = model->faces[index];
@@ -240,8 +250,7 @@ void draw_model(Model *model, SDL_Renderer *renderer)
             g_vertices[0] = model->screen_vertices[face[0].x];
             g_vertices[1] = model->screen_vertices[face[j].x];
             g_vertices[2] = model->screen_vertices[face[j+1].x];
-
-
+            
             // Apply flat shading
             for(int k = 0; k < 3; k++)
             {
@@ -254,30 +263,16 @@ void draw_model(Model *model, SDL_Renderer *renderer)
                 g_vertices[k].color.r = 255 * scale;
                 g_vertices[k].color.g = 255 * scale;
                 g_vertices[k].color.b = 255 * scale;
-            }
 
-            // Extract vectors for vector calculation
-            Vector2f a = {0}, b = {0}, c = {0};
-            a.x = g_vertices[0].position.x;
-            a.y = g_vertices[0].position.y;
-            b.x = g_vertices[1].position.x;
-            b.y = g_vertices[1].position.y;
-            c.x = g_vertices[2].position.x;
-            c.y = g_vertices[2].position.y;
+                if((int)model->ordered_faces[i].x == 60)
+                {
+                    g_vertices[k].color.r = 255;
+                    g_vertices[k].color.g = 0;
+                    g_vertices[k].color.b = 0;
+                }
+            } 
 
-            Vector2f mod_a = {0};
-            Sub(b, a, &mod_a);
-
-            Vector2f mod_b = {0};
-            Sub(c, a, &mod_b);
-
-            // Back face culling (very simple method of drawing too)
-            // If the cross product between the modified vectors is less than 0, then they should not
-            // be rendered.
-            if(Cross(mod_a, mod_b) >= 0.1)
-            {
-                SDL_RenderGeometry(renderer, NULL, g_vertices, 3, NULL, 0);
-            }
+            SDL_RenderGeometry(renderer, NULL, g_vertices, 3, NULL, 0);
         }
     }
 }

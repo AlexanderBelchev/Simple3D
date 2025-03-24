@@ -49,10 +49,10 @@ float Dot3f(Vector3f a, Vector3f b)
 
 float Angle3f(Vector3f a, Vector3f b)
 {
-    float vector_product = a.x*b.x + a.y*b.y + a.z*b.z;
-    float cos_result = vector_product / (Magnitude3f(a) * Magnitude3f(b));
-    //return acos(cos_result);
-    return cos_result;
+    float dot_product = Dot3f(a, b);
+    float cos_result = dot_product / (Magnitude3f(a) * Magnitude3f(b));
+    return acosf(cos_result) * 180/M_PI;
+    //return cos_result;
 }
 
 void Cross3f(Vector3f u, Vector3f v, Vector3f *out)

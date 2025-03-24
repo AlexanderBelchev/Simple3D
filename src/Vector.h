@@ -22,6 +22,7 @@ void Sub3f(Vector3f a, Vector3f b, Vector3f *out);
 void Normalize3f(Vector3f a, Vector3f *out);
 float Magnitude3f(Vector3f a);
 float Dot3f(Vector3f a, Vector3f b);
+// Returns degrees
 float Angle3f(Vector3f a, Vector3f b);
 
 void Multiply3f(Vector3f a, Vector3f b, Vector3f *out);

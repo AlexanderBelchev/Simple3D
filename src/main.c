@@ -48,7 +48,7 @@ int main()
     // After init, load model
     Model monkey = {0};
 
-    load_model(&monkey, "models/Mig15.obj");
+    load_model(&monkey, "models/monkey.obj");
 
     monkey.position.z = -15;
     monkey.position.x = 0;
