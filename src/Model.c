@@ -184,8 +184,11 @@ void sort_faces(Model *model)
         for(int j = 0; j < triangles; j++)
         {
             float angle = Angle3f(camera_direction, triangle_normals[j]);
-            if(angle < 90)
-                continue;
+            if(angle < 100)
+            {
+                avg_angle += 100;
+                ++n;
+            }
             avg_angle += angle;
             ++n;
         }
@@ -232,9 +235,6 @@ void draw_model(Model *model, SDL_Renderer *renderer)
 {
     for(int i = 0; i < model->face_count; i++)
     {
-        //if((int)model->ordered_faces[i].x == 356)
-        //    printf("%f\n", model->face_scale[(int)model->ordered_faces[i].x]);
-
         if(model->face_scale[(int)model->ordered_faces[i].x] <= 0)
             continue;
         int index = (int)model->ordered_faces[i].x;
@@ -269,12 +269,12 @@ void draw_model(Model *model, SDL_Renderer *renderer)
                 g_vertices[k].color.g = 255 * scale;
                 g_vertices[k].color.b = 255 * scale;
 
-                if((int)model->ordered_faces[i].x == 356)
+                /*if((int)model->ordered_faces[i].x == 356)
                 {
-                    g_vertices[k].color.r = 255;
+                    g_vertices[k].color.r = 255 * scale;
                     g_vertices[k].color.g = 0;
                     g_vertices[k].color.b = 0;
-                }
+                }*/
             } 
 
             SDL_RenderGeometry(renderer, NULL, g_vertices, 3, NULL, 0);
